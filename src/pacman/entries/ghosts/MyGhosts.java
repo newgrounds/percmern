@@ -14,9 +14,9 @@ import pacman.game.Game;
  */
 public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 {
-    // actual pacman size is 224 x 288 with 8 x 8 tiles
+    // actual pacman is 224 x 288 with 8 x 8 tiles
     // this game is 114 x 130 with 4 x 4 tiles
-    private int TILE_SIZE = 4;
+    private int TILE = 4;
 
 	private EnumMap<GHOST, MOVE> myMoves=new EnumMap<GHOST, MOVE>(GHOST.class);
 	
@@ -28,33 +28,52 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
         for (GHOST ghostType : GHOST.values()) {
             // if the ghost requires an action
             if (game.doesGhostRequireAction(ghostType)) {
-                int moveIndex = game.getGhostCurrentNodeIndex(ghostType);
+                int moveIndex;
+                // this is frame rate dependent right now
+                float currentTime = game.getCurrentLevelTime() / 30f;
+                //System.out.println(currentTime);
 
                 // check for frightened mode
+                if (game.isGhostEdible(ghostType)) {
+                    moveIndex = Frighten(game, ghostType);
+                }
 
-                // check for scatter mode
-                moveIndex = Scatter(game, ghostType);
                 /*
-
-                // Blinky chase mode
-                if (ghostType == GHOST.BLINKY) {
-                    moveIndex = BlinkyChase(game, ghostType);
+                    check for scatter mode
+                    1. Scatter for 7 seconds, then Chase for 20 seconds.
+                    2. Scatter for 7 seconds, then Chase for 20 seconds.
+                    3. Scatter for 5 seconds, then Chase for 20 seconds.
+                    4. Scatter for 5 seconds, then switch to Chase mode permanently.
+                 */
+                else if (currentTime < 8
+                        || (currentTime > 28 && currentTime < 36)
+                        || (currentTime > 56 && currentTime < 61)
+                        || (currentTime > 81 && currentTime < 86)) {
+                    moveIndex = Scatter(game, ghostType);
                 }
 
-                // Pinky chase mode
-                else if (ghostType == GHOST.PINKY) {
-                    moveIndex = PinkyChase(game, ghostType);
-                }
+                // default to chase mode
+                else {
+                    // Blinky chase mode
+                    if (ghostType == GHOST.BLINKY) {
+                        moveIndex = BlinkyChase(game, ghostType);
+                    }
 
-                // Inky chase mode
-                else if (ghostType == GHOST.INKY) {
-                    moveIndex = InkyChase(game, ghostType);
-                }
+                    // Pinky chase mode
+                    else if (ghostType == GHOST.PINKY) {
+                        moveIndex = PinkyChase(game, ghostType);
+                    }
 
-                // Sue chase mode
-                else if (ghostType == GHOST.SUE) {
-                    moveIndex = SueChase(game, ghostType);
-                }*/
+                    // Inky chase mode
+                    else if (ghostType == GHOST.INKY) {
+                        moveIndex = InkyChase(game, ghostType);
+                    }
+
+                    // Sue chase mode
+                    else {
+                        moveIndex = SueChase(game, ghostType);
+                    }
+                }
 
                 // calculate and add move using the Euclidean Distance Metric
                 myMoves.put(ghostType, game.getApproximateNextMoveAwayFromTarget(game.getGhostCurrentNodeIndex(ghostType),
@@ -73,7 +92,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
     // Pinky chase mode - set target to 4 moves ahead of pacman
     private int PinkyChase(Game game, GHOST ghostType) {
         int moveIndex = game.getPacmanCurrentNodeIndex();
-        for (int i = 0; i < (TILE_SIZE * 4); i++) {
+        for (int i = 0; i < (TILE * 4); i++) {
             int tempIndex = game.getNeighbour(moveIndex, game.getPacmanLastMoveMade());
             if (tempIndex <= 0) break;
             moveIndex = tempIndex;
