@@ -106,10 +106,22 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
         return moveIndex;
     }
 
-    // Sue chase mode -
+    // Sue chase mode - same as Blinky, but scatter if close to pacman
     private int SueChase(Game game, GHOST ghostType) {
-        int moveIndex = game.getPacmanCurrentNodeIndex();
-        return moveIndex;
+        // get the dist to pacman
+        double pacDist = game.getDistance(
+                game.getGhostCurrentNodeIndex(ghostType),
+                game.getPacmanCurrentNodeIndex(),
+                Constants.DM.EUCLID
+        );
+
+        // Scatter if within 8 tiles of pacman
+        if (pacDist <= (TILE * 8f)) {
+            return game.getPowerPillIndices()[2];
+        }
+
+        // otherwise, chase the same as Blinky
+        return BlinkyChase(game, ghostType);
     }
 
     // Scatter mode - return to your corner
