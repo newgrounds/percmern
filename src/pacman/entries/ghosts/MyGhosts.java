@@ -1,6 +1,7 @@
 package pacman.entries.ghosts;
 
 import java.util.EnumMap;
+import java.util.Timer;
 import pacman.controllers.Controller;
 import pacman.game.Constants;
 import pacman.game.Constants.GHOST;
@@ -17,21 +18,33 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
     // actual pacman is 224 x 288 with 8 x 8 tiles
     // this game is 114 x 130 with 4 x 4 tiles
     private int TILE = 4;
+    private long totalTime = 0;
+    private long lastTime = getSeconds();
+    private boolean frightened = false;
 
 	private EnumMap<GHOST, MOVE> myMoves=new EnumMap<GHOST, MOVE>(GHOST.class);
 	
 	public EnumMap<GHOST, MOVE> getMove(Game game, long timeDue)
 	{
+        //System.out.println("frightened: " + frightened);
+
+        // if any ghost is frightened, don't count time
+        if (!frightened) {
+            totalTime += getSeconds() - lastTime;
+        }
+        lastTime = getSeconds();
+
+        // reset frightened to false
+        frightened = false;
+
 		myMoves.clear();
 
         // iterate over the ghosts
         for (GHOST ghostType : GHOST.values()) {
+            frightened = frightened || game.isGhostEdible(ghostType);
             // if the ghost requires an action
             if (game.doesGhostRequireAction(ghostType)) {
                 int moveIndex;
-                // this is frame rate dependent right now
-                float currentTime = game.getCurrentLevelTime() / 30f;
-                //System.out.println(currentTime);
 
                 // check for frightened mode
                 if (game.isGhostEdible(ghostType)) {
@@ -45,10 +58,10 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
                     3. Scatter for 5 seconds, then Chase for 20 seconds.
                     4. Scatter for 5 seconds, then switch to Chase mode permanently.
                  */
-                else if (currentTime < 8
-                        || (currentTime > 28 && currentTime < 36)
-                        || (currentTime > 56 && currentTime < 61)
-                        || (currentTime > 81 && currentTime < 86)) {
+                else if (totalTime < 8
+                        || (totalTime > 28 && totalTime < 36)
+                        || (totalTime > 56 && totalTime < 61)
+                        || (totalTime > 81 && totalTime < 86)) {
                     moveIndex = Scatter(game, ghostType);
                 }
 
@@ -100,10 +113,56 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
         return moveIndex;
     }
 
-    // Inky chase mode -
+    // Inky chase mode - set target to 2 moves ahead of pacman
     private int InkyChase(Game game, GHOST ghostType) {
         int moveIndex = game.getPacmanCurrentNodeIndex();
-        return moveIndex;
+        for (int i = 0; i < (TILE * 2); i++) {
+            int tempIndex = game.getNeighbour(moveIndex, game.getPacmanLastMoveMade());
+            if (tempIndex <= 0) break;
+            moveIndex = tempIndex;
+        }
+
+        int xVector = game.getNodeXCood(moveIndex);
+        int yVector = game.getNodeYCood(moveIndex);
+
+        int actualMoveIndex = moveIndex;
+
+        // get dist to Blinky's position
+        int xDist = (xVector - game.getNodeXCood(game.getGhostCurrentNodeIndex(GHOST.BLINKY)));
+        int yDist = (yVector - game.getNodeYCood(game.getGhostCurrentNodeIndex(GHOST.BLINKY)));
+
+        //loop through x distance
+        while (xDist != 0) {
+            if (xDist > 0) {
+                xDist--;
+                actualMoveIndex = GetDirectionalIndex(game, moveIndex, MOVE.RIGHT);
+            } else {
+                xDist++;
+                actualMoveIndex = GetDirectionalIndex(game, moveIndex, MOVE.LEFT);
+            }
+        }
+        //loop through y distance
+        while (yDist != 0) {
+            if (yDist > 0) {
+                yDist--;
+                actualMoveIndex = GetDirectionalIndex(game, moveIndex, MOVE.UP);
+            } else {
+                yDist++;
+                actualMoveIndex = GetDirectionalIndex(game, moveIndex, MOVE.DOWN);
+            }
+        }
+
+        return actualMoveIndex;
+    }
+
+    private int GetDirectionalIndex(Game game, int moveIndex, MOVE mov) {
+        int tempIndex = game.getNeighbour(moveIndex, mov);
+
+        //if hitting a wall, break and try moving x distance
+        if (tempIndex <= 0) {
+            return moveIndex;
+        }
+        return tempIndex;
     }
 
     // Sue chase mode - same as Blinky, but scatter if close to pacman
@@ -145,5 +204,9 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
         int[] nodes = game.getNeighbouringNodes(game.getGhostCurrentNodeIndex(ghostType));
         // return one randomly
         return nodes[(int) Math.floor(Math.random() * nodes.length)];
+    }
+
+    private long getSeconds() {
+        return System.currentTimeMillis() / 1000;
     }
 }
