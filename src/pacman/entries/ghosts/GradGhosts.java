@@ -1,5 +1,4 @@
 package pacman.entries.ghosts;
-
 import java.util.EnumMap;
 import java.util.Timer;
 import pacman.controllers.Controller;
@@ -13,7 +12,7 @@ import pacman.game.Game;
  * fill in the getActions() method. Any additional classes you write should either
  * be placed in this package or sub-packages (e.g., game.entries.ghosts.mypackage).
  */
-public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
+public class GradGhosts extends Controller<EnumMap<GHOST,MOVE>>
 {
     // actual pacman is 224 x 288 with 8 x 8 tiles
     // this game is 114 x 130 with 4 x 4 tiles
@@ -37,7 +36,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
         // reset frightened to false
         frightened = false;
 
-		myMoves.clear();
+        myMoves.clear();
 
         // iterate over the ghosts
         for (GHOST ghostType : GHOST.values()) {
@@ -45,11 +44,12 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
             // if the ghost requires an action
             if (game.doesGhostRequireAction(ghostType)) {
                 int moveIndex;
-
                 // check for frightened mode
+                
                 if (game.isGhostEdible(ghostType)) {
                     moveIndex = Frighten(game, ghostType);
                 }
+                
 
                 /*
                     check for scatter mode
@@ -58,12 +58,14 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
                     3. Scatter for 5 seconds, then Chase for 20 seconds.
                     4. Scatter for 5 seconds, then switch to Chase mode permanently.
                  */
+                
                 else if (totalTime < 8
                         || (totalTime > 28 && totalTime < 36)
                         || (totalTime > 56 && totalTime < 61)
                         || (totalTime > 81 && totalTime < 86)) {
                     moveIndex = Scatter(game, ghostType);
                 }
+                        
 
                 // default to chase mode
                 else {
@@ -99,62 +101,100 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
 
     // Blinky chase mode - set target to pacman
     private int BlinkyChase(Game game, GHOST ghostType){
-        return game.getPacmanCurrentNodeIndex();
+        int moveIndex = game.getPacmanCurrentNodeIndex();
+        
+        for (int i = 0; i < (TILE * 4f); i++) {
+            int tempIndex = game.getNeighbour(moveIndex, MOVE.UP);
+            if (tempIndex <= 0) break;
+            moveIndex = tempIndex;
+        }
+        //get distance to pacman
+        double pacDist = game.getDistance(
+            game.getGhostCurrentNodeIndex(ghostType),
+            game.getPacmanCurrentNodeIndex(),
+            Constants.DM.EUCLID
+        );
+        // if withing 4 tiles of pacman go straight for him
+        if (pacDist <= TILE * 4f) {
+            return game.getPacmanCurrentNodeIndex();
+        }
+                
+        return moveIndex;
     }
 
     // Pinky chase mode - set target to 4 moves ahead of pacman
     private int PinkyChase(Game game, GHOST ghostType) {
         int moveIndex = game.getPacmanCurrentNodeIndex();
-        for (int i = 0; i < (TILE * 4); i++) {
-            int tempIndex = game.getNeighbour(moveIndex, game.getPacmanLastMoveMade());
+        
+        for (int i = 0; i < (TILE * 6f); i++) {
+            int tempIndex = game.getNeighbour(moveIndex, MOVE.DOWN);
             if (tempIndex <= 0) break;
             moveIndex = tempIndex;
+        }
+        //get distance to pacman
+        double pacDist = game.getDistance(
+            game.getGhostCurrentNodeIndex(ghostType),
+            game.getPacmanCurrentNodeIndex(),
+            Constants.DM.EUCLID
+        );
+        // if withing 4 tiles of pacman go straight for him
+        if (pacDist <= TILE * 4f) {
+            return BlinkyChase(game, ghostType);
         }
         return moveIndex;
     }
 
     // Inky chase mode - set target to 2 moves ahead of pacman
-    private int InkyChase(Game game, GHOST ghostType) {
-        int moveIndex = game.getPacmanCurrentNodeIndex();
-        for (int i = 0; i < (TILE * 2); i++) {
-            int tempIndex = game.getNeighbour(moveIndex, game.getPacmanLastMoveMade());
+    private int InkyChase(Game game, GHOST ghostType) { 
+                int moveIndex = game.getPacmanCurrentNodeIndex();
+        
+        for (int i = 0; i < (TILE * 4f); i++) {
+            int tempIndex = game.getNeighbour(moveIndex, MOVE.LEFT);
             if (tempIndex <= 0) break;
             moveIndex = tempIndex;
         }
-
-        int xVector = game.getNodeXCood(moveIndex);
-        int yVector = game.getNodeYCood(moveIndex);
-
-        int actualMoveIndex = moveIndex;
-
-        // get dist to Blinky's position
-        int xDist = (xVector - game.getNodeXCood(game.getGhostCurrentNodeIndex(GHOST.BLINKY)));
-        int yDist = (yVector - game.getNodeYCood(game.getGhostCurrentNodeIndex(GHOST.BLINKY)));
-
-        //loop through x distance
-        while (xDist != 0) {
-            if (xDist > 0) {
-                xDist--;
-                actualMoveIndex = GetDirectionalIndex(game, moveIndex, MOVE.RIGHT);
-            } else {
-                xDist++;
-                actualMoveIndex = GetDirectionalIndex(game, moveIndex, MOVE.LEFT);
+        //get distance to pacman
+        double pacDist = game.getDistance(
+            game.getGhostCurrentNodeIndex(ghostType),
+            game.getPacmanCurrentNodeIndex(),
+            Constants.DM.EUCLID
+        );
+        // if withing 4 tiles of pacman go straight for him
+        if (pacDist <= TILE * 4f) {
+            for (int i = 0; i < (TILE * 2f); i++) {
+                int tempIndex = game.getNeighbour(moveIndex, MOVE.RIGHT);
+                if (tempIndex <= 0) break;
+                moveIndex = tempIndex;
             }
         }
-        //loop through y distance
-        while (yDist != 0) {
-            if (yDist > 0) {
-                yDist--;
-                actualMoveIndex = GetDirectionalIndex(game, moveIndex, MOVE.UP);
-            } else {
-                yDist++;
-                actualMoveIndex = GetDirectionalIndex(game, moveIndex, MOVE.DOWN);
-            }
-        }
+        return moveIndex;
 
-        return actualMoveIndex;
     }
+    // Sue chase mode - same as Blinky, but scatter if close to pacman
+    private int SueChase(Game game, GHOST ghostType) {  
+        int moveIndex = game.getPacmanCurrentNodeIndex();
+        
+        for (int i = 0; i < (TILE * 4f); i++) {
+            int tempIndex = game.getNeighbour(moveIndex, MOVE.RIGHT);
+            if (tempIndex <= 0) break;
+            moveIndex = tempIndex;
+        }
+        //get distance to pacman
+        double pacDist = game.getDistance(
+            game.getGhostCurrentNodeIndex(ghostType),
+            game.getPacmanCurrentNodeIndex(),
+            Constants.DM.EUCLID
+        );
+        // if withing 4 tiles of pacman go straight for him
+        if (pacDist <= TILE * 6f) {
+            int newIndex = game.getNeighbour(moveIndex, MOVE.RIGHT);
+            if(newIndex > 0) return newIndex;
+        }
+        return moveIndex;
 
+    }
+    
+    
     private int GetDirectionalIndex(Game game, int moveIndex, MOVE mov) {
         int tempIndex = game.getNeighbour(moveIndex, mov);
 
@@ -165,23 +205,7 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
         return tempIndex;
     }
 
-    // Sue chase mode - same as Blinky, but scatter if close to pacman
-    private int SueChase(Game game, GHOST ghostType) {
-        // get the dist to pacman
-        double pacDist = game.getDistance(
-                game.getGhostCurrentNodeIndex(ghostType),
-                game.getPacmanCurrentNodeIndex(),
-                Constants.DM.EUCLID
-        );
 
-        // Scatter if within 8 tiles of pacman
-        if (pacDist <= (TILE * 8f)) {
-            return game.getPowerPillIndices()[2];
-        }
-
-        // otherwise, chase the same as Blinky
-        return BlinkyChase(game, ghostType);
-    }
 
     // Scatter mode - return to your corner
     private int Scatter(Game game, GHOST ghost){
@@ -189,8 +213,10 @@ public class MyGhosts extends Controller<EnumMap<GHOST,MOVE>>
         if (ghost == GHOST.BLINKY) return game.getPowerPillIndices()[3];
 
         // Pinky owns the top left corner = 2
-        else if (ghost == GHOST.PINKY) return game.getPowerPillIndices()[2];
-
+        else if (ghost == GHOST.PINKY){
+            //System.out.println(game.isPowerPillStillAvailable(2));
+            return game.getPowerPillIndices()[2];
+        }
         // Inky owns the bottom right corner = 0
         else if (ghost == GHOST.INKY) return game.getPowerPillIndices()[0];
 
